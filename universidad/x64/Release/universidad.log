@@ -1,0 +1,20 @@
+﻿  universidad.cpp
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(165,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(179,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(191,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(228,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(240,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(251,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(288,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(300,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(311,26): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(331,34): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(352,34): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(377,34): warning C4101: 'e': unreferenced local variable
+C:\Users\ElGonzalez\Documents\Projects\universidad\universidad\universidad.cpp(387,34): warning C4101: 'e': unreferenced local variable
+  Generating code
+  20 of 198 functions (10.1%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    3 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  universidad.vcxproj -> C:\Users\ElGonzalez\Documents\Projects\universidad\x64\Release\universidad.exe

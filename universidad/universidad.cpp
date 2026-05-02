@@ -1,0 +1,366 @@
+#include <stdlib.h>
+#include <iostream>
+#include <string>
+#include <limits>
+#include <mysql_connection.h>
+#include <cppconn/driver.h>
+#include <cppconn/exception.h>
+#include <cppconn/resultset.h>
+#include <cppconn/statement.h>
+#include <cppconn/prepared_statement.h>
+
+using namespace std;
+using namespace sql;
+Connection* conectar();
+void limpiarBuffer();
+void limpiarConsola();
+int leerEntero();
+void menuAlumnos(Connection* con);
+void menuCursos(Connection* con);
+void menuSecciones(Connection* con);
+void menuAlumnosCursos(Connection* con);
+void menuAlumnosSeccion(Connection* con);
+void listarAlumnos(Connection* con);
+void insertarAlumno(Connection* con);
+void modificarAlumno(Connection* con);
+void eliminarAlumno(Connection* con);
+void listarCursos(Connection* con);
+void insertarCurso(Connection* con);
+void modificarCurso(Connection* con);
+void eliminarCurso(Connection* con);
+void listarSecciones(Connection* con);
+void insertarSeccion(Connection* con);
+void modificarSeccion(Connection* con);
+void eliminarSeccion(Connection* con);
+
+void limpiarBuffer() {
+    cin.clear();
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
+
+void limpiarConsola() {
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+int leerEntero() {
+    int n;
+    while (!(cin >> n)) {
+        cout << "Dato invalido. Ingrese un numero: ";
+        limpiarBuffer();
+    }
+    return n;
+}
+
+int main() {
+    Connection* con = conectar();
+    if (!con) return 1;
+
+    int opcion;
+    do {
+        limpiarConsola();
+        cout << "===============================\n";
+        cout << "      SISTEMA UNIVERSIDAD      \n";
+        cout << "===============================\n";
+        cout << "1. Alumnos\n2. Cursos\n3. Secciones\n4. Asignar Cursos a Alumno\n5. Asignar Seccion a Alumno\n6. Salir\n";
+        cout << "Seleccione: ";
+        opcion = leerEntero();
+
+        switch (opcion) {
+        case 1: menuAlumnos(con); break;
+        case 2: menuCursos(con); break;
+        case 3: menuSecciones(con); break;
+        case 4: menuAlumnosCursos(con); break;
+        case 5: menuAlumnosSeccion(con); break;
+        }
+    } while (opcion != 6);
+
+    delete con;
+    return 0;
+}
+
+Connection* conectar() {
+    try {
+        Driver* driver = get_driver_instance();
+        Connection* con = driver->connect("tcp://127.0.0.1:3306", "root", "password");
+        con->setSchema("universidad");
+        return con;
+    }
+    catch (SQLException& e) {
+        cout << "Error de conexion: " << e.what() << endl;
+        return nullptr;
+    }
+}
+
+void menuAlumnos(Connection* con) {
+    int op;
+    do {
+        cout << "\n--- MODULO ALUMNOS ---\n1. Listar\n2. Grabar\n3. Modificar\n4. Eliminar\n5. Regresar\nSeleccione: ";
+        op = leerEntero();
+        switch (op) {
+        case 1: listarAlumnos(con); break;
+        case 2: insertarAlumno(con); break;
+        case 3: modificarAlumno(con); break;
+        case 4: eliminarAlumno(con); break;
+        }
+    } while (op != 5);
+}
+
+void listarAlumnos(Connection* con) {
+    try {
+        Statement* stmt = con->createStatement();
+        ResultSet* res = stmt->executeQuery(
+            "SELECT a.id, a.nombres, a.apellidos, a.carnet, "
+            "IFNULL(c.nombre, 'Sin cursos') AS curso, "
+            "IFNULL(s.nombre, 'Sin seccion') AS seccion "
+            "FROM alumnos a "
+            "LEFT JOIN alumnos_cursos ac ON a.id = ac.alumno_id "
+            "LEFT JOIN cursos c ON ac.curso_id = c.id "
+            "LEFT JOIN alumnos_seccion ase ON a.id = ase.alumno_id "
+            "LEFT JOIN secciones s ON ase.seccion_id = s.id "
+            "ORDER BY a.id ASC"
+        );
+        cout << "\nID | Alumno | Carnet | Curso | Seccion\n--------------------------------------\n";
+        while (res->next()) {
+            cout << res->getInt("id") << " | " << res->getString("nombres") << " " << res->getString("apellidos")
+                << " | " << res->getString("carnet") << " | " << res->getString("curso") << " | " << res->getString("seccion") << endl;
+        }
+        delete res; delete stmt;
+    }
+    catch (SQLException& e) { cout << "Error: " << e.what() << endl; }
+}
+
+void insertarAlumno(Connection* con) {
+    string nom, ape, car;
+    limpiarBuffer();
+    cout << "Nombres: "; getline(cin, nom);
+    cout << "Apellidos: "; getline(cin, ape);
+    cout << "Carnet: "; cin >> car;
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("INSERT INTO alumnos(nombres, apellidos, carnet) VALUES (?, ?, ?)");
+        pstmt->setString(1, nom); pstmt->setString(2, ape); pstmt->setString(3, car);
+        pstmt->executeUpdate();
+        cout << "Alumno guardado.\n";
+        delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error: Carnet duplicado.\n"; }
+}
+
+void modificarAlumno(Connection* con) {
+    cout << "ID del alumno: "; int id = leerEntero();
+    string nom, ape; limpiarBuffer();
+    cout << "Nuevo Nombre: "; getline(cin, nom);
+    cout << "Nuevo Apellido: "; getline(cin, ape);
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("UPDATE alumnos SET nombres = ?, apellidos = ? WHERE id = ?");
+        pstmt->setString(1, nom); pstmt->setString(2, ape); pstmt->setInt(3, id);
+        if (pstmt->executeUpdate()) cout << "Datos actualizados.\n";
+        delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error al actualizar.\n"; }
+}
+
+void eliminarAlumno(Connection* con) {
+    cout << "ID Alumno: "; int id = leerEntero();
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("DELETE FROM alumnos WHERE id = ?");
+        pstmt->setInt(1, id);
+        pstmt->executeUpdate();
+        cout << "Alumno eliminado.\n";
+        delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error al eliminar.\n"; }
+}
+
+void menuCursos(Connection* con) {
+    int op;
+    do {
+        cout << "\n--- MODULO CURSOS ---\n1. Listar\n2. Grabar\n3. Modificar\n4. Eliminar\n5. Regresar\nSeleccione: ";
+        op = leerEntero();
+        switch (op) {
+        case 1: listarCursos(con); break;
+        case 2: insertarCurso(con); break;
+        case 3: modificarCurso(con); break;
+        case 4: eliminarCurso(con); break;
+        }
+    } while (op != 5);
+}
+
+void listarCursos(Connection* con) {
+    try {
+        Statement* stmt = con->createStatement();
+        ResultSet* res = stmt->executeQuery("SELECT * FROM cursos");
+        while (res->next()) cout << res->getInt("id") << " | " << res->getString("nombre") << " | " << res->getString("codigo") << endl;
+        delete res; delete stmt;
+    }
+    catch (SQLException& e) { cout << "Error: " << e.what() << endl; }
+}
+
+void insertarCurso(Connection* con) {
+    string nom, cod; limpiarBuffer();
+    cout << "Curso: "; getline(cin, nom);
+    cout << "Codigo: "; cin >> cod;
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("INSERT INTO cursos(nombre, codigo) VALUES (?, ?)");
+        pstmt->setString(1, nom); pstmt->setString(2, cod);
+        pstmt->executeUpdate(); delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error.\n"; }
+}
+
+void modificarCurso(Connection* con) {
+    cout << "ID Curso: "; int id = leerEntero();
+    string nom; limpiarBuffer();
+    cout << "Nuevo Nombre: "; getline(cin, nom);
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("UPDATE cursos SET nombre = ? WHERE id = ?");
+        pstmt->setString(1, nom); pstmt->setInt(2, id);
+        pstmt->executeUpdate(); delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error.\n"; }
+}
+
+void eliminarCurso(Connection* con) {
+    cout << "ID Curso: "; int id = leerEntero();
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("DELETE FROM cursos WHERE id = ?");
+        pstmt->setInt(1, id);
+        pstmt->executeUpdate();
+        delete pstmt;
+    }
+    catch (SQLException& e) { cout << "No se puede eliminar: curso asignado a alumnos.\n"; }
+}
+
+void menuSecciones(Connection* con) {
+    int op;
+    do {
+        cout << "\n--- MODULO SECCIONES ---\n1. Listar\n2. Grabar\n3. Modificar\n4. Eliminar\n5. Regresar\nSeleccione: ";
+        op = leerEntero();
+        switch (op) {
+        case 1: listarSecciones(con); break;
+        case 2: insertarSeccion(con); break;
+        case 3: modificarSeccion(con); break;
+        case 4: eliminarSeccion(con); break;
+        }
+    } while (op != 5);
+}
+
+void listarSecciones(Connection* con) {
+    try {
+        Statement* stmt = con->createStatement();
+        ResultSet* res = stmt->executeQuery("SELECT * FROM secciones");
+        while (res->next()) cout << res->getInt("id") << " | " << res->getString("nombre") << " | " << res->getString("jornada") << endl;
+        delete res; delete stmt;
+    }
+    catch (SQLException& e) { cout << "Error: " << e.what() << endl; }
+}
+
+void insertarSeccion(Connection* con) {
+    string nom, jor; limpiarBuffer();
+    cout << "Seccion: "; getline(cin, nom);
+    cout << "Jornada: "; getline(cin, jor);
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("INSERT INTO secciones(nombre, jornada) VALUES (?, ?)");
+        pstmt->setString(1, nom); pstmt->setString(2, jor);
+        pstmt->executeUpdate(); delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error.\n"; }
+}
+
+void modificarSeccion(Connection* con) {
+    cout << "ID Seccion: "; int id = leerEntero();
+    string jor; limpiarBuffer();
+    cout << "Nueva Jornada: "; getline(cin, jor);
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("UPDATE secciones SET jornada = ? WHERE id = ?");
+        pstmt->setString(1, jor); pstmt->setInt(2, id);
+        pstmt->executeUpdate(); delete pstmt;
+    }
+    catch (SQLException& e) { cout << "Error.\n"; }
+}
+
+void eliminarSeccion(Connection* con) {
+    cout << "ID Seccion: "; int id = leerEntero();
+    try {
+        PreparedStatement* pstmt = con->prepareStatement("DELETE FROM secciones WHERE id = ?");
+        pstmt->setInt(1, id);
+        pstmt->executeUpdate();
+        delete pstmt;
+    }
+    catch (SQLException& e) { cout << "No se puede eliminar: tiene alumnos.\n"; }
+}
+
+void menuAlumnosCursos(Connection* con) {
+    int op;
+    do {
+        cout << "\n--- ASIGNACION CURSOS ---\n1. Asignar nuevo curso a alumno\n2. Listar asignaciones\n3. Eliminar asignacion especifica\n4. Regresar\nSeleccione: ";
+        op = leerEntero();
+        if (op == 1) {
+            cout << "ID Alumno: "; int alu = leerEntero();
+            cout << "ID Curso: "; int cur = leerEntero();
+            try {
+                PreparedStatement* pstmt = con->prepareStatement("INSERT INTO alumnos_cursos(alumno_id, curso_id) VALUES (?, ?)");
+                pstmt->setInt(1, alu); pstmt->setInt(2, cur);
+                pstmt->executeUpdate(); delete pstmt;
+                cout << "Curso asignado.\n";
+            }
+            catch (SQLException& e) { cout << "Error: Curso ya asignado o IDs no validos.\n"; }
+        }
+        else if (op == 2) {
+            Statement* stmt = con->createStatement();
+            ResultSet* res = stmt->executeQuery(
+                "SELECT a.nombres, a.carnet, c.nombre FROM alumnos_cursos ac "
+                "JOIN alumnos a ON ac.alumno_id = a.id "
+                "JOIN cursos c ON ac.curso_id = c.id ORDER BY a.nombres"
+            );
+            while (res->next()) cout << res->getString(1) << " (" << res->getString(2) << ") -> " << res->getString(3) << endl;
+            delete res; delete stmt;
+        }
+        else if (op == 3) {
+            cout << "ID Alumno: "; int alu = leerEntero();
+            cout << "ID Curso: "; int cur = leerEntero();
+            try {
+                PreparedStatement* pstmt = con->prepareStatement("DELETE FROM alumnos_cursos WHERE alumno_id = ? AND curso_id = ?");
+                pstmt->setInt(1, alu); pstmt->setInt(2, cur);
+                pstmt->executeUpdate(); delete pstmt;
+                cout << "Asignacion removida.\n";
+            }
+            catch (SQLException& e) { cout << "Error al eliminar asignacion.\n"; }
+        }
+    } while (op != 4);
+}
+
+void menuAlumnosSeccion(Connection* con) {
+    int op;
+    do {
+        cout << "\n--- ASIGNACION SECCION ---\n1. Asignar o Cambiar Seccion\n2. Eliminar Seccion de Alumno\n3. Regresar\nSeleccione: ";
+        op = leerEntero();
+        if (op == 1) {
+            cout << "ID Alumno: "; int alu = leerEntero();
+            cout << "ID Seccion: "; int sec = leerEntero();
+            try {
+                PreparedStatement* pstmt = con->prepareStatement(
+                    "INSERT INTO alumnos_seccion(alumno_id, seccion_id) VALUES (?, ?) "
+                    "ON DUPLICATE KEY UPDATE seccion_id = ?"
+                );
+                pstmt->setInt(1, alu); pstmt->setInt(2, sec); pstmt->setInt(3, sec);
+                pstmt->executeUpdate(); delete pstmt;
+                cout << "Seccion actualizada.\n";
+            }
+            catch (SQLException& e) { cout << "Error: IDs invalidos.\n"; }
+        }
+        else if (op == 2) {
+            cout << "ID Alumno: "; int alu = leerEntero();
+            try {
+                PreparedStatement* pstmt = con->prepareStatement("DELETE FROM alumnos_seccion WHERE alumno_id = ?");
+                pstmt->setInt(1, alu);
+                pstmt->executeUpdate(); delete pstmt;
+                cout << "Seccion removida.\n";
+            }
+            catch (SQLException& e) { cout << "Error.\n"; }
+        }
+    } while (op != 3);
+}
